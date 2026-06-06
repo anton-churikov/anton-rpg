@@ -1,0 +1,13 @@
+{
+  "name": "anton-rpg",
+  "version": "2.0.0",
+  "private": true,
+  "engines": { "node": ">=22.0.0" },
+  "scripts": {
+    "build": "cd client && npm install --legacy-peer-deps && npm run build",
+    "start": "node --experimental-sqlite server/src/index.js",
+    "dev:server": "node --watch --experimental-sqlite server/src/index.js",
+    "dev:client": "cd client && npm run dev"
+  },
+  "devDependencies": { "concurrently": "^8.2.2" }
+}
