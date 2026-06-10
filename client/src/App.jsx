@@ -2,25 +2,22 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { Toaster, toast } from 'react-hot-toast'
 import { AuthProvider, useAuth } from './hooks/useAuth.jsx'
 import { LoginPage, SignupPage } from './pages/AuthPages.jsx'
-import PlayerPage       from './components/PlayerPage.jsx'
-import SkillsPage       from './components/SkillsPage.jsx'
-import QuestsPage       from './components/QuestsPage.jsx'
-import TasksPage        from './components/TasksPage.jsx'
-import AchievementsPage from './components/AchievementsPage.jsx'
-import CalendarPage     from './components/CalendarPage.jsx'
-import LevelUpFlash     from './components/LevelUpFlash.jsx'
-import XPBar            from './components/XPBar.jsx'
-import SyncIndicator    from './components/SyncIndicator.jsx'
-import { api }          from './lib/api.js'
+import PlayerPage          from './components/PlayerPage.jsx'
+import SkillsPage          from './components/SkillsPage.jsx'
+import RoadmapPage         from './components/RoadmapPage.jsx'
+import TasksPage           from './components/TasksPage.jsx'
+import AchievementsPage    from './components/AchievementsPage.jsx'
+import CalendarPage        from './components/CalendarPage.jsx'
+import TimeManagementPage  from './components/TimeManagementPage.jsx'
+import LevelUpFlash        from './components/LevelUpFlash.jsx'
+import XPBar               from './components/XPBar.jsx'
+import SyncIndicator       from './components/SyncIndicator.jsx'
+import { api }             from './lib/api.js'
 import {
-  playerLevelFromXP,
-  playerXPForLevel,
-  playerXPForNextLevel,
-  PLAYER_TITLES,
-  skillLevelFromXP,
+  playerLevelFromXP, playerXPForLevel, playerXPForNextLevel,
+  PLAYER_TITLES, skillLevelFromXP,
 } from './lib/rpg.js'
 
-// ── XP popup ──────────────────────────────────────────────────────────────────
 function XPPopup({ amount, onDone }) {
   useEffect(() => { const t = setTimeout(onDone, 1800); return () => clearTimeout(t) }, [onDone])
   return (
@@ -30,33 +27,32 @@ function XPPopup({ amount, onDone }) {
   )
 }
 
-// ── NAV CONFIG ────────────────────────────────────────────────────────────────
 const NAV = [
-  { key:'player',       label:'PLAYER',        icon:'⚔️' },
-  { key:'calendar',     label:'CALENDARIO',     icon:'📅' },
-  { key:'skills',       label:'HABILIDADES',    icon:'⭐' },
-  { key:'quests',       label:'QUESTS',         icon:'📜' },
-  { key:'tasks',        label:'MISIONES',       icon:'⚡' },
-  { key:'achievements', label:'LOGROS',         icon:'🏆' },
+  { key:'player',      label:'PLAYER',        icon:'⚔️' },
+  { key:'roadmap',     label:'ROADMAP',        icon:'🗺️' },
+  { key:'time',        label:'TIEMPO',         icon:'⏱️' },
+  { key:'calendar',    label:'CALENDARIO',     icon:'📅' },
+  { key:'skills',      label:'HABILIDADES',    icon:'⭐' },
+  { key:'tasks',       label:'MISIONES',       icon:'⚡' },
+  { key:'achievements',label:'LOGROS',         icon:'🏆' },
 ]
 
 const FUTURE_NAV = [
   { label:'INVENTARIO', icon:'🎒' },
-  { label:'MAPA RPG',   icon:'🗺️' },
   { label:'BATALLAS',   icon:'🐉' },
   { label:'RECOMPENSAS',icon:'🎁' },
 ]
 
 const PAGE_META = {
-  player:       { eyebrow:'▶ PLAYER_DATA.SAV', title:'THE LIFE OF ANTON', subtitle:'EVERY DAY IS A QUEST. EVERY SKILL IS A LEVEL.' },
-  calendar:     { eyebrow:'▶ CALENDAR.DAT',    title:'CALENDARIO',         subtitle:'ORGANIZA TU TIEMPO. DOMINA TU DÍA.' },
-  skills:       { eyebrow:'▶ SKILLS.DAT',      title:'HABILIDADES',        subtitle:'ENTRENA DURO. SUBE DE NIVEL. CONQUISTA.' },
-  quests:       { eyebrow:'▶ QUESTS.DAT',      title:'QUEST BOARD',        subtitle:'ACEPTA MISIONES. GANA XP. HAZTE MÁS FUERTE.' },
-  tasks:        { eyebrow:'▶ MISSIONS.DAT',    title:'REGISTRO DE MISIONES', subtitle:'COMPLETA MISIONES. RECOGE XP. SUBE DE NIVEL.' },
-  achievements: { eyebrow:'▶ RECORDS.SAV',     title:'LOGROS',             subtitle:'DESBLOQUEA INSIGNIAS. DEMUESTRA TU VALÍA.' },
+  player:       { eyebrow:'▶ PLAYER_DATA.SAV', title:'THE LIFE OF ANTON',     subtitle:'EVERY DAY IS A QUEST. EVERY SKILL IS A LEVEL.' },
+  roadmap:      { eyebrow:'▶ ROADMAP.DAT',     title:'ROADMAP',               subtitle:'TUS OBJETIVOS. TU CAMINO. TU HISTORIA.' },
+  time:         { eyebrow:'▶ TIME.DAT',        title:'GESTIÓN DEL TIEMPO',    subtitle:'24 HORAS. ÚSALAS CON INTENCIÓN.' },
+  calendar:     { eyebrow:'▶ CALENDAR.DAT',    title:'CALENDARIO',            subtitle:'ORGANIZA TU TIEMPO. DOMINA TU DÍA.' },
+  skills:       { eyebrow:'▶ SKILLS.DAT',      title:'HABILIDADES',           subtitle:'ENTRENA DURO. SUBE DE NIVEL. CONQUISTA.' },
+  tasks:        { eyebrow:'▶ MISSIONS.DAT',    title:'REGISTRO DE MISIONES',  subtitle:'COMPLETA MISIONES. RECOGE XP. SUBE DE NIVEL.' },
+  achievements: { eyebrow:'▶ RECORDS.SAV',     title:'LOGROS',                subtitle:'DESBLOQUEA INSIGNIAS. DEMUESTRA TU VALÍA.' },
 }
 
-// ── GAME SHELL ────────────────────────────────────────────────────────────────
 function GameShell() {
   const { user, profile, setProfile, logout } = useAuth()
   const [route, setRoute]     = useState('player')
@@ -65,15 +61,14 @@ function GameShell() {
   const [tasks, setTasks]     = useState([])
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [xpPopup, setXpPopup]   = useState(null)
+  const [xpPopup, setXpPopup]     = useState(null)
   const [levelUpMsg, setLevelUpMsg] = useState(null)
   const addTaskRef = useRef(null)
 
-  // Load game data on mount
   useEffect(() => {
     Promise.all([api.skills.list(), api.quests.list(), api.tasks.list()])
-      .then(([s, q, t]) => { setSkills(s); setQuests(q); setTasks(t) })
-      .catch(() => toast.error('Error al cargar datos', { className: 'rpg-toast' }))
+      .then(([s,q,t]) => { setSkills(s); setQuests(q); setTasks(t) })
+      .catch(() => toast.error('Error al cargar datos', { className:'rpg-toast' }))
       .finally(() => setLoading(false))
   }, [])
 
@@ -85,53 +80,40 @@ function GameShell() {
       const updated = await api.player.get()
       setProfile(updated)
       const newLevel = playerLevelFromXP(updated.totalXP)
-      if (newLevel > oldLevel) {
-        setTimeout(() => setLevelUpMsg(
-          `NIVEL ${newLevel} — ${PLAYER_TITLES[Math.min(newLevel, PLAYER_TITLES.length - 1)]}`
-        ), 500)
-      }
+      if (newLevel > oldLevel)
+        setTimeout(() => setLevelUpMsg(`NIVEL ${newLevel} — ${PLAYER_TITLES[Math.min(newLevel, PLAYER_TITLES.length-1)]}`), 500)
     } catch {}
   }, [profile, setProfile])
 
   const navigate = (r) => { setRoute(r); setSidebarOpen(false) }
 
-  // Derived
-  const totalXP  = profile?.totalXP ?? 0
-  const level    = playerLevelFromXP(totalXP)
-  const prevXP   = playerXPForLevel(level)
-  const nextXP   = playerXPForNextLevel(level)
-  const xpInLv   = totalXP - prevXP
-  const xpForLv  = Math.max(1, nextXP - prevXP)
+  const totalXP = profile?.totalXP ?? 0
+  const level   = playerLevelFromXP(totalXP)
+  const prevXP  = playerXPForLevel(level)
+  const nextXP  = playerXPForNextLevel(level)
+  const xpInLv  = totalXP - prevXP
+  const xpForLv = Math.max(1, nextXP - prevXP)
 
-  const activeMissions = tasks.filter(t => t.status !== 'completed').length
-  const activeQuests   = quests.filter(q => q.status !== 'completed').length
-  const unlockedAchs   = profile?.unlockedAchievements?.length ?? 0
-
-  const page = PAGE_META[route]
+  const activeMissions  = tasks.filter(t => t.status !== 'completed').length
+  const activeQuests    = quests.filter(q => q.status !== 'completed').length
+  const unlockedAchs    = profile?.unlockedAchievements?.length ?? 0
+  const page            = PAGE_META[route]
 
   return (
     <div className="app">
-      <Toaster position="bottom-right" toastOptions={{ duration: 2500 }} />
-
+      <Toaster position="bottom-right" toastOptions={{ duration:2500 }} />
       {xpPopup && <XPPopup key={xpPopup.id} amount={xpPopup.amount} onDone={() => setXpPopup(null)} />}
       {levelUpMsg && <LevelUpFlash message={levelUpMsg} onDone={() => setLevelUpMsg(null)} />}
+      {sidebarOpen && <div style={{ position:'fixed',inset:0,zIndex:40,background:'rgba(0,0,6,0.7)' }} onClick={() => setSidebarOpen(false)} />}
 
-      {sidebarOpen && (
-        <div
-          style={{ position:'fixed', inset:0, zIndex:40, background:'rgba(0,0,6,0.7)' }}
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* ══ SIDEBAR ════════════════════════════════════════════════ */}
-      <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
+      {/* ══ SIDEBAR ════════════════════════════════════════════ */}
+      <aside className={`sidebar ${sidebarOpen?'open':''}`}>
         <div className="sidebar-logo">
           <div className="logo-game-tag">▶ SEGA RPG</div>
-          <div className="logo-title">THE LIFE<br />OF ANTON</div>
+          <div className="logo-title">THE LIFE<br/>OF ANTON</div>
           <div className="logo-subtitle">EVERY DAY IS A QUEST</div>
         </div>
 
-        {/* Mini player HUD */}
         {profile && (
           <div className="sidebar-player-hud">
             <div className="player-hud-name">⚔️ {profile.displayName || user?.name?.toUpperCase()}</div>
@@ -140,7 +122,7 @@ function GameShell() {
               <span className="player-hud-xp">{totalXP.toLocaleString()} XP</span>
             </div>
             <div className="mini-xp-bar">
-              <div className="mini-xp-fill" style={{ width: `${Math.round((xpInLv / xpForLv) * 100)}%` }} />
+              <div className="mini-xp-fill" style={{ width:`${Math.round((xpInLv/xpForLv)*100)}%` }} />
             </div>
           </div>
         )}
@@ -148,29 +130,18 @@ function GameShell() {
         <nav className="sidebar-nav">
           <div className="nav-section-label">// MENÚ</div>
           {NAV.map(n => (
-            <div
-              key={n.key}
-              className={`nav-item ${route === n.key ? 'active' : ''}`}
-              onClick={() => navigate(n.key)}
-            >
+            <div key={n.key} className={`nav-item ${route===n.key?'active':''}`} onClick={() => navigate(n.key)}>
               <span className="nav-icon">{n.icon}</span>
               {n.label}
-              {n.key === 'tasks'  && activeMissions > 0 && (
-                <span className="nav-badge">{activeMissions}</span>
-              )}
-              {n.key === 'quests' && activeQuests > 0 && (
-                <span className="nav-badge" style={{ color:'var(--yellow)', borderColor:'rgba(255,221,0,0.4)', background:'rgba(255,221,0,0.1)' }}>{activeQuests}</span>
-              )}
-              {n.key === 'achievements' && unlockedAchs > 0 && (
-                <span className="nav-badge" style={{ color:'var(--yellow)', borderColor:'rgba(255,221,0,0.4)', background:'rgba(255,221,0,0.1)' }}>{unlockedAchs}</span>
-              )}
+              {n.key==='tasks'  && activeMissions>0 && <span className="nav-badge">{activeMissions}</span>}
+              {n.key==='roadmap'&& activeQuests>0   && <span className="nav-badge" style={{color:'var(--yellow)',borderColor:'rgba(255,221,0,0.4)',background:'rgba(255,221,0,0.1)'}}>{activeQuests}</span>}
+              {n.key==='achievements'&& unlockedAchs>0 && <span className="nav-badge" style={{color:'var(--yellow)',borderColor:'rgba(255,221,0,0.4)',background:'rgba(255,221,0,0.1)'}}>{unlockedAchs}</span>}
             </div>
           ))}
-
-          <div className="nav-section-label" style={{ marginTop: 10 }}>// PRÓXIMAMENTE</div>
+          <div className="nav-section-label" style={{ marginTop:10 }}>// PRÓXIMAMENTE</div>
           {FUTURE_NAV.map(n => (
             <div key={n.label} className="nav-item-locked">
-              <span className="nav-icon" style={{ fontSize: 12 }}>{n.icon}</span>
+              <span className="nav-icon" style={{ fontSize:12 }}>{n.icon}</span>
               {n.label}
               <span className="lock-tag">PRONTO</span>
             </div>
@@ -179,81 +150,69 @@ function GameShell() {
 
         <div className="sidebar-bottom">
           <SyncIndicator />
-          <button className="theme-toggle-btn" onClick={async () => { await logout() }}>
+          <button className="theme-toggle-btn" onClick={async () => await logout()}>
             <span>⏻ CERRAR SESIÓN</span>
-            <span style={{ fontFamily:'var(--font-hud)', fontSize:11, color:'var(--dim)' }}>
-              {user?.email?.split('@')[0]}
-            </span>
+            <span style={{ fontFamily:'var(--font-hud)',fontSize:11,color:'var(--dim)' }}>{user?.email?.split('@')[0]}</span>
           </button>
         </div>
       </aside>
 
-      {/* ══ MAIN ═══════════════════════════════════════════════════ */}
+      {/* ══ MAIN ══════════════════════════════════════════════════ */}
       <main className="main">
-        {/* Page header */}
         <header className="page-header">
           <div className="page-header-top">
             <div style={{ display:'flex', alignItems:'flex-start', gap:12 }}>
               <button className="hamburger" onClick={() => setSidebarOpen(true)}>☰</button>
               <div className="page-header-title-block">
-                <div className="page-eyebrow">{page.eyebrow}</div>
-                <div className="page-title">{page.title}</div>
-                <div className="page-subtitle">{page.subtitle}</div>
+                <div className="page-eyebrow">{page?.eyebrow}</div>
+                <div className="page-title">{page?.title}</div>
+                <div className="page-subtitle">{page?.subtitle}</div>
               </div>
             </div>
-
             <div className="page-actions">
-              {/* KPI blocks */}
-              {!loading && route !== 'player' && route !== 'achievements' && route !== 'calendar' && (
-                <div className="kpi-row" style={{ marginBottom: 0 }}>
-                  {route === 'skills' && (<>
+              {!loading && !['player','achievements','calendar','time','roadmap'].includes(route) && (
+                <div className="kpi-row" style={{ marginBottom:0 }}>
+                  {route==='skills' && (<>
                     <div className="kpi-block"><div className="kpi-val c-yellow">{skills.length}</div><div className="kpi-label">TOTAL</div></div>
-                    <div className="kpi-block"><div className="kpi-val c-cyan">{skills.length > 0 ? Math.max(...skills.map(s => skillLevelFromXP(s.xp))) : 0}</div><div className="kpi-label">MAX LV</div></div>
+                    <div className="kpi-block"><div className="kpi-val c-cyan">{skills.length>0?Math.max(...skills.map(s=>skillLevelFromXP(s.xp))):0}</div><div className="kpi-label">MAX LV</div></div>
                   </>)}
-                  {route === 'quests' && (<>
-                    <div className="kpi-block"><div className="kpi-val c-orange">{activeQuests}</div><div className="kpi-label">ACTIVAS</div></div>
-                    <div className="kpi-block"><div className="kpi-val c-green">{quests.filter(q=>q.status==='completed').length}</div><div className="kpi-label">COMPLETADAS</div></div>
-                  </>)}
-                  {route === 'tasks' && (<>
+                  {route==='tasks' && (<>
                     <div className="kpi-block"><div className="kpi-val c-cyan">{activeMissions}</div><div className="kpi-label">ACTIVAS</div></div>
                     <div className="kpi-block"><div className="kpi-val c-green">{tasks.filter(t=>t.status==='completed').length}</div><div className="kpi-label">HECHAS</div></div>
                     <div className="kpi-block"><div className="kpi-val c-yellow">{tasks.filter(t=>t.status!=='completed').reduce((s,t)=>s+t.xpReward,0)}</div><div className="kpi-label">XP DISP.</div></div>
                   </>)}
                 </div>
               )}
-
-              {/* Action buttons */}
-              {route === 'tasks'  && <button className="btn btn-yellow" onClick={() => addTaskRef.current?.()}>+ MISIÓN</button>}
-              {route === 'quests' && <button className="btn btn-yellow" onClick={() => document.dispatchEvent(new CustomEvent('open-quest-modal'))}>+ QUEST</button>}
-              {route === 'skills' && <button className="btn btn-yellow" onClick={() => document.dispatchEvent(new CustomEvent('open-skill-modal'))}>+ HABILIDAD</button>}
+              {route==='roadmap' && <button className="btn btn-yellow" onClick={() => document.dispatchEvent(new CustomEvent('open-quest-modal'))}>+ OBJETIVO</button>}
+              {route==='tasks'   && <button className="btn btn-yellow" onClick={() => addTaskRef.current?.()}>+ MISIÓN</button>}
+              {route==='skills'  && <button className="btn btn-yellow" onClick={() => document.dispatchEvent(new CustomEvent('open-skill-modal'))}>+ HABILIDAD</button>}
+              {route==='time'    && <button className="btn btn-yellow" onClick={() => document.dispatchEvent(new CustomEvent('open-timeblock-modal'))}>+ BLOQUE</button>}
             </div>
           </div>
-
-          {/* XP bar on player page */}
-          {route === 'player' && profile && (
-            <div style={{ marginBottom: 14 }}>
+          {route==='player' && profile && (
+            <div style={{ marginBottom:14 }}>
               <XPBar current={xpInLv} max={xpForLv} label={`NIVEL ${level}`} color="cyan" height={18} />
             </div>
           )}
-          <div style={{ height: 14 }} />
+          <div style={{ height:14 }} />
         </header>
 
-        {/* ── PAGE CONTENT ───────────────────────────────────── */}
         <div className="content" style={{ display:'flex', flexDirection:'column' }}>
           {loading ? (
             <div className="skill-grid">
-              {Array.from({ length: 6 }).map((_, i) => (
+              {Array.from({length:6}).map((_,i)=>(
                 <div key={i} className="skeleton skeleton-card" style={{ animationDelay:`${i*0.1}s` }} />
               ))}
             </div>
           ) : (
             <>
-              {route === 'player'       && <PlayerPage       player={profile} skills={skills} tasks={tasks} quests={quests} />}
-              {route === 'calendar'     && <CalendarPage     skills={skills} quests={quests} />}
-              {route === 'skills'       && <SkillsPage       skills={skills} tasks={tasks} onSkillsChange={setSkills} />}
-              {route === 'quests'       && <QuestsPage       quests={quests} skills={skills} onQuestsChange={setQuests} onXPGain={handleXPGain} />}
-              {route === 'tasks'        && <TasksPage        tasks={tasks} skills={skills} onTasksChange={setTasks} onXPGain={handleXPGain} addTaskRef={addTaskRef} />}
-              {route === 'achievements' && <AchievementsPage player={profile} skills={skills} tasks={tasks} quests={quests} />}
+              {route==='player'       && <PlayerPage        player={profile} skills={skills} tasks={tasks} quests={quests} />}
+              {route==='roadmap'      && <RoadmapPage       quests={quests} skills={skills} onQuestsChange={setQuests} onXPGain={handleXPGain} />}
+              {route==='time'         && <TimeManagementPage tasks={tasks} />}
+              {route==='calendar'     && <CalendarPage      skills={skills} quests={quests} />}
+              {route==='skills'       && <SkillsPage        skills={skills} tasks={tasks} onSkillsChange={setSkills} />}
+              {route==='tasks'        && <TasksPage         tasks={tasks} skills={skills} onTasksChange={setTasks} onXPGain={handleXPGain} addTaskRef={addTaskRef} />}
+              {route==='achievements' && <AchievementsPage  player={profile} skills={skills} tasks={tasks} quests={quests} />}
             </>
           )}
         </div>
@@ -262,11 +221,9 @@ function GameShell() {
   )
 }
 
-// ── AUTH GATE ─────────────────────────────────────────────────────────────────
 function AuthGate() {
   const { user, loading } = useAuth()
   const [showSignup, setShowSignup] = useState(false)
-
   if (loading) return (
     <div className="auth-page">
       <div style={{ fontFamily:'var(--font-title)', fontSize:10, color:'var(--yellow)', textShadow:'var(--glow-yellow)', animation:'blink 1s step-end infinite' }}>
@@ -274,21 +231,12 @@ function AuthGate() {
       </div>
     </div>
   )
-
-  if (!user) {
-    return showSignup
-      ? <SignupPage onSwitch={() => setShowSignup(false)} />
-      : <LoginPage  onSwitch={() => setShowSignup(true)} />
-  }
-
+  if (!user) return showSignup
+    ? <SignupPage onSwitch={() => setShowSignup(false)} />
+    : <LoginPage  onSwitch={() => setShowSignup(true)} />
   return <GameShell />
 }
 
-// ── ROOT ──────────────────────────────────────────────────────────────────────
 export default function App() {
-  return (
-    <AuthProvider>
-      <AuthGate />
-    </AuthProvider>
-  )
+  return <AuthProvider><AuthGate /></AuthProvider>
 }

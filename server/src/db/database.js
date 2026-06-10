@@ -62,6 +62,8 @@ function initSchema(db) {
       xpReward INTEGER NOT NULL DEFAULT 200,
       deadline TEXT,
       completedAt TEXT,
+      lastCompletedDate TEXT,
+      totalCompletions INTEGER NOT NULL DEFAULT 0,
       createdAt TEXT NOT NULL DEFAULT (datetime('now')),
       updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -132,15 +134,47 @@ function initSchema(db) {
       claimedAt TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
-    CREATE INDEX IF NOT EXISTS idx_skills_user   ON skills(userId);
-    CREATE INDEX IF NOT EXISTS idx_quests_user   ON quests(userId);
-    CREATE INDEX IF NOT EXISTS idx_tasks_user    ON tasks(userId);
-    CREATE INDEX IF NOT EXISTS idx_events_user   ON events(userId);
-    CREATE INDEX IF NOT EXISTS idx_events_date   ON events(userId, date);
-    CREATE INDEX IF NOT EXISTS idx_activity_user ON activity_log(userId);
+    CREATE INDEX IF NOT EXISTS idx_skills_user    ON skills(userId);
+    CREATE INDEX IF NOT EXISTS idx_quests_user    ON quests(userId);
+    CREATE INDEX IF NOT EXISTS idx_tasks_user     ON tasks(userId);
+    CREATE INDEX IF NOT EXISTS idx_events_user    ON events(userId);
+    CREATE INDEX IF NOT EXISTS idx_events_date    ON events(userId, date);
+    CREATE INDEX IF NOT EXISTS idx_activity_user  ON activity_log(userId);
     CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token);
     CREATE INDEX IF NOT EXISTS idx_sessions_user  ON sessions(userId);
+    CREATE TABLE IF NOT EXISTS time_blocks (
+      id TEXT PRIMARY KEY,
+      userId TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      title TEXT NOT NULL,
+      color TEXT NOT NULL DEFAULT '#1a6bff',
+      startHour REAL NOT NULL,
+      duration REAL NOT NULL,
+      category TEXT NOT NULL DEFAULT 'work',
+      relatedTaskId TEXT REFERENCES tasks(id) ON DELETE SET NULL,
+      dayOfWeek INTEGER,
+      date TEXT,
+      isTemplate INTEGER NOT NULL DEFAULT 0,
+      createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+      updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_timeblocks_user ON time_blocks(userId);
+    CREATE INDEX IF NOT EXISTS idx_timeblocks_date ON time_blocks(userId, date);
+
   `);
+
+  // Migrate: add new columns to existing DBs without breaking them
+  try { db.exec(`ALTER TABLE quests ADD COLUMN lastCompletedDate TEXT`); } catch {}
+  try { db.exec(`CREATE TABLE IF NOT EXISTS time_blocks (id TEXT PRIMARY KEY, userId TEXT NOT NULL, title TEXT NOT NULL, color TEXT NOT NULL DEFAULT '#1a6bff', startHour REAL NOT NULL, duration REAL NOT NULL, category TEXT NOT NULL DEFAULT 'work', relatedTaskId TEXT, dayOfWeek INTEGER, date TEXT, isTemplate INTEGER NOT NULL DEFAULT 0, createdAt TEXT NOT NULL DEFAULT (datetime('now')), updatedAt TEXT NOT NULL DEFAULT (datetime('now')))`); } catch {}
+  try { db.exec(`CREATE INDEX IF NOT EXISTS idx_timeblocks_user ON time_blocks(userId)`); } catch {}
+  try { db.exec(`CREATE INDEX IF NOT EXISTS idx_timeblocks_date ON time_blocks(userId, date)`); } catch {}
+  // events table — may not exist in older deployments
+  try { db.exec(`CREATE TABLE IF NOT EXISTS events (id TEXT PRIMARY KEY, userId TEXT NOT NULL, title TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', date TEXT NOT NULL, startTime TEXT NOT NULL, endTime TEXT NOT NULL, color TEXT NOT NULL DEFAULT '#1a6bff', relatedSkillId TEXT, relatedQuestId TEXT, createdAt TEXT NOT NULL DEFAULT (datetime('now')), updatedAt TEXT NOT NULL DEFAULT (datetime('now')))`); } catch {}
+  try { db.exec(`CREATE INDEX IF NOT EXISTS idx_events_user ON events(userId)`); } catch {}
+  try { db.exec(`CREATE INDEX IF NOT EXISTS idx_events_date ON events(userId, date)`); } catch {}
+  // activity_log — may not exist in older deployments
+  try { db.exec(`CREATE TABLE IF NOT EXISTS activity_log (id TEXT PRIMARY KEY, userId TEXT NOT NULL, type TEXT NOT NULL, description TEXT NOT NULL, xpEarned INTEGER NOT NULL DEFAULT 0, relatedId TEXT, createdAt TEXT NOT NULL DEFAULT (datetime('now')))`); } catch {}
+  try { db.exec(`CREATE INDEX IF NOT EXISTS idx_activity_user ON activity_log(userId)`); } catch {}
 }
 
 export default getDb;

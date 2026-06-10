@@ -18,7 +18,7 @@ process.on('unhandledRejection', (reason) => {
 import { getDb } from './db/database.js';
 import authRouter from './routes/auth.js';
 import playerRouter from './routes/player.js';
-import { skillsRouter, questsRouter, tasksRouter, activityRouter, eventsRouter } from './routes/game.js';
+import { skillsRouter, questsRouter, tasksRouter, activityRouter, eventsRouter, timeBlocksRouter } from './routes/game.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -52,7 +52,8 @@ app.use('/api/skills',     skillsRouter);
 app.use('/api/quests',     questsRouter);
 app.use('/api/tasks',      tasksRouter);
 app.use('/api/activity',   activityRouter);
-app.use('/api/events',     eventsRouter);
+app.use('/api/events',      eventsRouter);
+app.use('/api/timeblocks',  timeBlocksRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {

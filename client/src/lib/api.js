@@ -124,3 +124,10 @@ api.events = {
   update: (id, data) => request('PATCH',  `/events/${id}`, data),
   delete: (id)       => request('DELETE', `/events/${id}`),
 }
+
+api.timeblocks = {
+  list:   (date) => request('GET', `/timeblocks${date ? `?date=${date}` : ''}`),
+  create: (data)     => request('POST',   '/timeblocks',      data),
+  update: (id, data) => request('PATCH',  `/timeblocks/${id}`, data),
+  delete: (id)       => request('DELETE', `/timeblocks/${id}`),
+}
