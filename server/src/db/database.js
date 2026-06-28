@@ -175,6 +175,12 @@ function initSchema(db) {
   // activity_log — may not exist in older deployments
   try { db.exec(`CREATE TABLE IF NOT EXISTS activity_log (id TEXT PRIMARY KEY, userId TEXT NOT NULL, type TEXT NOT NULL, description TEXT NOT NULL, xpEarned INTEGER NOT NULL DEFAULT 0, relatedId TEXT, createdAt TEXT NOT NULL DEFAULT (datetime('now')))`); } catch {}
   try { db.exec(`CREATE INDEX IF NOT EXISTS idx_activity_user ON activity_log(userId)`); } catch {}
+
+  // Coins & Cosmetic Shop — additive only, safe on existing DBs
+  try { db.exec(`ALTER TABLE player_profiles ADD COLUMN coins INTEGER NOT NULL DEFAULT 0`); } catch {}
+  try { db.exec(`ALTER TABLE player_profiles ADD COLUMN equipped TEXT NOT NULL DEFAULT '{}'`); } catch {}
+  try { db.exec(`ALTER TABLE activity_log ADD COLUMN coinsEarned INTEGER NOT NULL DEFAULT 0`); } catch {}
+  try { db.exec(`CREATE INDEX IF NOT EXISTS idx_inventory_user ON inventory(userId)`); } catch {}
 }
 
 export default getDb;

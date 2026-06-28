@@ -46,6 +46,18 @@ export const ACHIEVEMENTS = [
   { id:'collector',     name:'SKILL COLLECTOR',    icon:'🗂️',  desc:'Have 10 skills.',                        xp:150 },
 ];
 
+// ── COSMETICS (Coins & Shop) ────────────────────────────────────────────────
+export const RARITY_META = {
+  common:    { label:'COMÚN',      color:'#9aa4b2', glow:'none' },
+  rare:      { label:'RARO',       color:'#3aa0ff', glow:'0 0 8px rgba(58,160,255,0.5)' },
+  epic:      { label:'ÉPICO',      color:'#b06bff', glow:'0 0 8px rgba(176,107,255,0.5)' },
+  legendary: { label:'LEGENDARIO', color:'#ffb000', glow:'0 0 10px rgba(255,176,0,0.6)' },
+};
+
+export const SLOT_LABELS = {
+  title:'TÍTULO', theme:'TEMA', avatar:'AVATAR', frame:'MARCO', badge:'INSIGNIA',
+};
+
 export function fmtDeadline(d) {
   if (!d) return null;
   const date = new Date(d);

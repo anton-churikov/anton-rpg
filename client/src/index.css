@@ -1874,3 +1874,92 @@ body::after {
   0%,100% { opacity: 1; box-shadow: 0 0 6px var(--cyan); }
   50%      { opacity: 0.5; box-shadow: 0 0 12px var(--cyan); }
 }
+
+/* ══════════════════════════════════════════════════════
+   COINS & COSMETIC SHOP
+   ══════════════════════════════════════════════════════ */
+
+/* Sidebar coin balance */
+.player-hud-coins {
+  margin-top: 8px;
+  font-family: var(--font-hud);
+  font-size: 14px;
+  color: var(--yellow);
+  display: flex; align-items: center; gap: 6px;
+  cursor: pointer;
+  transition: text-shadow 0.2s;
+}
+.player-hud-coins:hover { text-shadow: var(--glow-yellow); }
+.player-hud-coins span { letter-spacing: 1px; }
+
+/* Shop balance banner */
+.shop-balance {
+  display: flex; justify-content: space-between; align-items: center;
+  background: var(--panel);
+  border: 1px solid var(--border2);
+  border-left: 3px solid var(--yellow);
+  padding: 14px 18px;
+}
+
+/* Card grid shared by shop + vault */
+.shop-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.shop-card {
+  position: relative;
+  background: var(--panel);
+  border: 2px solid var(--border2);
+  padding: 12px;
+  display: flex; flex-direction: column;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.shop-card:hover { transform: translateY(-2px); }
+
+.shop-card-preview {
+  height: 70px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  margin-bottom: 8px;
+}
+
+.shop-card-name {
+  font-family: var(--font-title);
+  font-size: 6px;
+  letter-spacing: 1px;
+  color: var(--white);
+  line-height: 1.6;
+  min-height: 22px;
+}
+
+.loot-tag {
+  position: absolute;
+  top: 6px; right: 6px;
+  font-family: var(--font-title);
+  font-size: 4px;
+  letter-spacing: 1px;
+  color: var(--bg);
+  background: var(--yellow);
+  padding: 3px 5px;
+  z-index: 2;
+}
+
+/* Cosmetic frames (override .player-avatar border when equipped) */
+.cos-frame { border: 3px solid var(--border2); background: var(--bg); }
+.frame-bronze    { border-color: #cd7f32; box-shadow: 0 0 8px rgba(205,127,50,0.4); }
+.frame-silver    { border-color: #c0c8d4; box-shadow: 0 0 8px rgba(192,200,212,0.5); }
+.frame-gold      { border-color: #ffcc33; box-shadow: 0 0 12px rgba(255,204,51,0.6); }
+.frame-neon      { border-color: #00e5ff; box-shadow: 0 0 14px rgba(0,229,255,0.7); }
+.frame-prismatic {
+  border-color: transparent;
+  border-image: linear-gradient(135deg, #ff00aa, #ffcc33, #00e5ff, #b06bff, #ff00aa) 1;
+  box-shadow: 0 0 14px rgba(176,107,255,0.6);
+  animation: prismatic-spin 4s linear infinite;
+}
+@keyframes prismatic-spin {
+  0%   { filter: hue-rotate(0deg); }
+  100% { filter: hue-rotate(360deg); }
+}

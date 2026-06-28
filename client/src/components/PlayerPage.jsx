@@ -27,15 +27,22 @@ export default function PlayerPage({ player, skills, tasks, quests }) {
     ? Math.max(...skills.map(s => skillLevelFromXP(s.xp)))
     : 0
 
+  const cos = player?.equippedCosmetics ?? {}
+
   return (
     <div className="player-page">
 
       {/* ── HERO ──────────────────────────────────────────────── */}
       <div className="player-hero">
-        <div className="player-avatar">⚔️</div>
+        <div className={`player-avatar ${cos.frame ? `cos-frame ${cos.frame.data.className}` : ''}`}>
+          {cos.avatar?.data?.glyph || '⚔️'}
+        </div>
         <div className="player-info">
-          <div className="player-name">{player?.displayName || 'ANTON'}</div>
-          <div className="player-class">◈ SKILL ADVENTURER</div>
+          <div className="player-name">
+            {player?.displayName || 'ANTON'}
+            {cos.badge?.data?.glyph && <span style={{ marginLeft:8 }}>{cos.badge.data.glyph}</span>}
+          </div>
+          <div className="player-class">◈ {cos.title?.data?.text || 'SKILL ADVENTURER'}</div>
           <div className="global-level-display">
             <span className="global-lv-label">GLOBAL LEVEL</span>
             <span className="global-lv-num">{level}</span>

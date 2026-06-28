@@ -131,3 +131,15 @@ api.timeblocks = {
   update: (id, data) => request('PATCH',  `/timeblocks/${id}`, data),
   delete: (id)       => request('DELETE', `/timeblocks/${id}`),
 }
+
+// SHOP & INVENTORY (Coins & Cosmetics)
+api.shop = {
+  catalog: ()          => request('GET',  '/shop'),
+  buy:     (itemId)    => request('POST', '/shop/buy',   { itemId }),
+  equip:   (itemId)    => request('POST', '/shop/equip', { itemId }),
+  unequip: (slot)      => request('POST', '/shop/equip', { itemId: null, slot }),
+}
+
+api.inventory = {
+  list: () => request('GET', '/inventory'),
+}

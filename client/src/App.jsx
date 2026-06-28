@@ -9,6 +9,8 @@ import TasksPage           from './components/TasksPage.jsx'
 import AchievementsPage    from './components/AchievementsPage.jsx'
 import CalendarPage        from './components/CalendarPage.jsx'
 import TimeManagementPage  from './components/TimeManagementPage.jsx'
+import ShopPage            from './components/ShopPage.jsx'
+import VaultPage           from './components/VaultPage.jsx'
 import LevelUpFlash        from './components/LevelUpFlash.jsx'
 import XPBar               from './components/XPBar.jsx'
 import SyncIndicator       from './components/SyncIndicator.jsx'
@@ -35,12 +37,12 @@ const NAV = [
   { key:'skills',      label:'HABILIDADES',    icon:'⭐' },
   { key:'tasks',       label:'MISIONES',       icon:'⚡' },
   { key:'achievements',label:'LOGROS',         icon:'🏆' },
+  { key:'shop',        label:'TIENDA',         icon:'🛒' },
+  { key:'vault',       label:'BÓVEDA',         icon:'🎒' },
 ]
 
 const FUTURE_NAV = [
-  { label:'INVENTARIO', icon:'🎒' },
   { label:'BATALLAS',   icon:'🐉' },
-  { label:'RECOMPENSAS',icon:'🎁' },
 ]
 
 const PAGE_META = {
@@ -51,10 +53,12 @@ const PAGE_META = {
   skills:       { eyebrow:'▶ SKILLS.DAT',      title:'HABILIDADES',           subtitle:'ENTRENA DURO. SUBE DE NIVEL. CONQUISTA.' },
   tasks:        { eyebrow:'▶ MISSIONS.DAT',    title:'REGISTRO DE MISIONES',  subtitle:'COMPLETA MISIONES. RECOGE XP. SUBE DE NIVEL.' },
   achievements: { eyebrow:'▶ RECORDS.SAV',     title:'LOGROS',                subtitle:'DESBLOQUEA INSIGNIAS. DEMUESTRA TU VALÍA.' },
+  shop:         { eyebrow:'▶ SHOP.EXE',        title:'TIENDA',                subtitle:'GASTA TUS MONEDAS. PERSONALIZA TU LEYENDA.' },
+  vault:        { eyebrow:'▶ VAULT.SAV',       title:'BÓVEDA',                subtitle:'TU COLECCIÓN. EQUIPA TU ESTILO.' },
 }
 
 function GameShell() {
-  const { user, profile, setProfile, logout } = useAuth()
+  const { user, profile, setProfile, logout, refreshProfile } = useAuth()
   const [route, setRoute]     = useState('player')
   const [skills, setSkills]   = useState([])
   const [quests, setQuests]   = useState([])
@@ -84,6 +88,19 @@ function GameShell() {
         setTimeout(() => setLevelUpMsg(`NIVEL ${newLevel} — ${PLAYER_TITLES[Math.min(newLevel, PLAYER_TITLES.length-1)]}`), 500)
     } catch {}
   }, [profile, setProfile])
+
+  // Apply equipped theme: recolor the global accent. Reset when none equipped.
+  useEffect(() => {
+    const theme = profile?.equippedCosmetics?.theme?.data
+    const root = document.documentElement
+    if (theme?.accent) {
+      root.style.setProperty('--yellow', theme.accent)
+      if (theme.glow) root.style.setProperty('--glow-yellow', theme.glow)
+    } else {
+      root.style.removeProperty('--yellow')
+      root.style.removeProperty('--glow-yellow')
+    }
+  }, [profile?.equippedCosmetics?.theme?.id])
 
   const navigate = (r) => { setRoute(r); setSidebarOpen(false) }
 
@@ -123,6 +140,9 @@ function GameShell() {
             </div>
             <div className="mini-xp-bar">
               <div className="mini-xp-fill" style={{ width:`${Math.round((xpInLv/xpForLv)*100)}%` }} />
+            </div>
+            <div className="player-hud-coins" onClick={() => navigate('shop')} title="Ir a la tienda">
+              🪙 <span>{(profile.coins ?? 0).toLocaleString()}</span>
             </div>
           </div>
         )}
@@ -170,7 +190,7 @@ function GameShell() {
               </div>
             </div>
             <div className="page-actions">
-              {!loading && !['player','achievements','calendar','time','roadmap'].includes(route) && (
+              {!loading && !['player','achievements','calendar','time','roadmap','shop','vault'].includes(route) && (
                 <div className="kpi-row" style={{ marginBottom:0 }}>
                   {route==='skills' && (<>
                     <div className="kpi-block"><div className="kpi-val c-yellow">{skills.length}</div><div className="kpi-label">TOTAL</div></div>
@@ -213,6 +233,8 @@ function GameShell() {
               {route==='skills'       && <SkillsPage        skills={skills} tasks={tasks} onSkillsChange={setSkills} />}
               {route==='tasks'        && <TasksPage         tasks={tasks} skills={skills} onTasksChange={setTasks} onXPGain={handleXPGain} addTaskRef={addTaskRef} />}
               {route==='achievements' && <AchievementsPage  player={profile} skills={skills} tasks={tasks} quests={quests} />}
+              {route==='shop'         && <ShopPage          onProfileChange={refreshProfile} />}
+              {route==='vault'        && <VaultPage         onProfileChange={refreshProfile} />}
             </>
           )}
         </div>

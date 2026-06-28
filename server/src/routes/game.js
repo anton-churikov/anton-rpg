@@ -2,6 +2,10 @@ import { Router } from 'express';
 import { v4 as uuid } from 'uuid';
 import { getDb } from '../db/database.js';
 import { requireAuth } from '../middleware/auth.js';
+import { awardXpCoins } from '../economy.js';
+import { rollLoot } from '../data/cosmetics.js';
+
+const LOOT_DROP_CHANCE = 0.08; // ~8% chance for a cosmetic to drop on quest completion
 
 // ── SKILLS ────────────────────────────────────────────────────────────────────
 export const skillsRouter = Router();
@@ -121,19 +125,39 @@ questsRouter.patch('/:id', requireAuth, (req, res) => {
   let lastCompletedDate = ex.lastCompletedDate;
   let totalCompletions = ex.totalCompletions || 0;
   let nextStatus = newStatus;
+  let coinsAwarded = 0;
+  let loot = null;
 
   if (completing) {
     const reward = xpReward ?? ex.xpReward;
+    // Capture XP before award so we can detect level-ups for coin bonuses
+    const prof = db.prepare('SELECT totalXP FROM player_profiles WHERE userId=?').get(req.userId);
+    const oldXP = prof?.totalXP ?? 0;
     // Award XP to player
     db.prepare('UPDATE player_profiles SET totalXP=totalXP+?, updatedAt=? WHERE userId=?').run(reward, now, req.userId);
+    // Award coins (XP trickle + level-up bonus)
+    coinsAwarded = awardXpCoins(db, req.userId, oldXP, reward);
     // Award XP to linked skill
     if (ex.relatedSkillId) {
       db.prepare('UPDATE skills SET xp=xp+?, updatedAt=? WHERE id=? AND userId=?')
         .run(Math.floor(reward / 3), now, ex.relatedSkillId, req.userId);
     }
     // Log activity
-    db.prepare('INSERT INTO activity_log (id,userId,type,description,xpEarned,relatedId,createdAt) VALUES (?,?,?,?,?,?,?)')
-      .run(uuid(), req.userId, 'quest_complete', `Quest: ${ex.title}`, reward, req.params.id, now);
+    db.prepare('INSERT INTO activity_log (id,userId,type,description,xpEarned,coinsEarned,relatedId,createdAt) VALUES (?,?,?,?,?,?,?,?)')
+      .run(uuid(), req.userId, 'quest_complete', `Quest: ${ex.title}`, reward, coinsAwarded, req.params.id, now);
+
+    // Rare cosmetic loot drop (~8%)
+    if (Math.random() < LOOT_DROP_CHANCE) {
+      const owned = db.prepare('SELECT itemId FROM inventory WHERE userId=? AND itemType=?').all(req.userId, 'cosmetic').map(r => r.itemId);
+      const drop = rollLoot(owned);
+      if (drop) {
+        db.prepare('INSERT INTO inventory (id,userId,itemType,itemId,quantity,metadata,acquiredAt) VALUES (?,?,?,?,?,?,?)')
+          .run(uuid(), req.userId, 'cosmetic', drop.id, 1, JSON.stringify({ source: 'loot', questId: req.params.id }), now);
+        db.prepare('INSERT INTO activity_log (id,userId,type,description,xpEarned,coinsEarned,relatedId,createdAt) VALUES (?,?,?,?,?,?,?,?)')
+          .run(uuid(), req.userId, 'loot_drop', `Botín: ${drop.name}`, 0, 0, drop.id, now);
+        loot = { id: drop.id, type: drop.type, name: drop.name, rarity: drop.rarity, data: drop.data };
+      }
+    }
 
     totalCompletions += 1;
     lastCompletedDate = today;
@@ -162,7 +186,7 @@ questsRouter.patch('/:id', requireAuth, (req, res) => {
       completedAt, lastCompletedDate, totalCompletions, now, req.params.id, req.userId);
 
   const updated = db.prepare(questJoin + ' AND q.id=?').get(req.userId, req.params.id);
-  res.json({ ...updated, xpAwarded: completing ? (xpReward ?? ex.xpReward) : 0 });
+  res.json({ ...updated, xpAwarded: completing ? (xpReward ?? ex.xpReward) : 0, coinsAwarded, loot });
 });
 
 questsRouter.delete('/:id', requireAuth, (req, res) => {
@@ -211,16 +235,20 @@ tasksRouter.patch('/:id', requireAuth, (req, res) => {
   const newDiff   = difficulty ?? ex.difficulty;
   const completing = newStatus === 'completed' && ex.status !== 'completed';
   const completedAt = newStatus === 'completed' ? (ex.completedAt || now) : null;
+  let coinsAwarded = 0;
 
   if (completing) {
     const reward = diffXP[newDiff] || ex.xpReward;
+    const prof = db.prepare('SELECT totalXP FROM player_profiles WHERE userId=?').get(req.userId);
+    const oldXP = prof?.totalXP ?? 0;
     db.prepare('UPDATE player_profiles SET totalXP=totalXP+?, updatedAt=? WHERE userId=?').run(reward, now, req.userId);
+    coinsAwarded = awardXpCoins(db, req.userId, oldXP, reward);
     if (ex.relatedSkillId) {
       db.prepare('UPDATE skills SET xp=xp+?, updatedAt=? WHERE id=? AND userId=?')
         .run(Math.floor(reward / 2), now, ex.relatedSkillId, req.userId);
     }
-    db.prepare('INSERT INTO activity_log (id,userId,type,description,xpEarned,relatedId,createdAt) VALUES (?,?,?,?,?,?,?)')
-      .run(uuid(), req.userId, 'task_complete', `Tarea: ${ex.title}`, reward, req.params.id, now);
+    db.prepare('INSERT INTO activity_log (id,userId,type,description,xpEarned,coinsEarned,relatedId,createdAt) VALUES (?,?,?,?,?,?,?,?)')
+      .run(uuid(), req.userId, 'task_complete', `Tarea: ${ex.title}`, reward, coinsAwarded, req.params.id, now);
     // Update streak
     const today = now.split('T')[0];
     const p = db.prepare('SELECT * FROM player_profiles WHERE userId=?').get(req.userId);
@@ -238,7 +266,7 @@ tasksRouter.patch('/:id', requireAuth, (req, res) => {
       diffXP[newDiff]||ex.xpReward, dueDate!==undefined?dueDate:ex.dueDate,
       completedAt, now, req.params.id, req.userId);
   const updated = db.prepare(taskJoin + ' AND t.id=?').get(req.userId, req.params.id);
-  res.json({ ...updated, xpAwarded: completing ? (diffXP[newDiff] || ex.xpReward) : 0 });
+  res.json({ ...updated, xpAwarded: completing ? (diffXP[newDiff] || ex.xpReward) : 0, coinsAwarded });
 });
 
 tasksRouter.delete('/:id', requireAuth, (req, res) => {

@@ -3,18 +3,9 @@ import bcrypt from 'bcryptjs';
 import { v4 as uuid } from 'uuid';
 import { getDb } from '../db/database.js';
 import { generateToken } from '../middleware/auth.js';
+import { formatProfile } from '../profile.js';
 
 const router = Router();
-
-function formatProfile(p) {
-  if (!p) return null;
-  return {
-    ...p,
-    unlockedAchievements: typeof p.unlockedAchievements === 'string'
-      ? JSON.parse(p.unlockedAchievements)
-      : (p.unlockedAchievements || [])
-  };
-}
 
 function updateStreak(db, userId, now) {
   const profile = db.prepare('SELECT * FROM player_profiles WHERE userId = ?').get(userId);
