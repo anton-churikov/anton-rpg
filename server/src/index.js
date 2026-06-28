@@ -23,6 +23,9 @@ import { shopRouter, inventoryRouter } from './routes/shop.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
+// Railway/own proxy sets X-Forwarded-For; trust the first hop so
+// express-rate-limit can identify clients (fixes ERR_ERL_UNEXPECTED_X_FORWARDED_FOR)
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3001;
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
 
