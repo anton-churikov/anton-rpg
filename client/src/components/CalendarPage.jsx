@@ -21,6 +21,28 @@ const EVENT_COLORS = [
 
 const HOUR_HEIGHT = 60 // px per hour
 
+// Time categories — mirror of TimeManagementPage / server TIME_CATEGORIES
+const TIME_CATEGORIES = [
+  { key:'sleep',   label:'SUEÑO',      color:'#4444aa', icon:'🌙' },
+  { key:'work',    label:'TRABAJO',     color:'#1a6bff', icon:'💼' },
+  { key:'study',   label:'ESTUDIO',     color:'#aa44ff', icon:'📚' },
+  { key:'fitness', label:'EJERCICIO',   color:'#00ff66', icon:'💪' },
+  { key:'hobby',   label:'HOBBY',       color:'#ff7700', icon:'🎮' },
+  { key:'social',  label:'SOCIAL',      color:'#ff69b4', icon:'👥' },
+  { key:'rest',    label:'DESCANSO',    color:'#00d4ff', icon:'☕' },
+  { key:'other',   label:'OTRO',        color:'#888888', icon:'◉'  },
+]
+const CAT_MAP = Object.fromEntries(TIME_CATEGORIES.map(c => [c.key, c]))
+
+function fmtHrs(h) {
+  if (!h || h <= 0) return '0h'
+  const whole = Math.floor(h)
+  const mins  = Math.round((h - whole) * 60)
+  if (whole === 0) return `${mins}m`
+  if (mins === 0)  return `${whole}h`
+  return `${whole}h ${mins}m`
+}
+
 // ── HELPERS ───────────────────────────────────────────────────────────────────
 function getWeekDates(baseDate) {
   const d = new Date(baseDate)
@@ -77,6 +99,7 @@ function EventModal({ event, defaultDate, defaultStart, defaultEnd, skills, ques
     startTime:      event?.startTime      || defaultStart || '09:00',
     endTime:        event?.endTime        || defaultEnd   || '10:00',
     color:          event?.color          || '#1a6bff',
+    category:       event?.category       || '',
     relatedSkillId: event?.relatedSkillId || '',
     relatedQuestId: event?.relatedQuestId || '',
   })
@@ -108,6 +131,7 @@ function EventModal({ event, defaultDate, defaultStart, defaultEnd, skills, ques
     setSaving(true)
     await onSave({
       ...form,
+      category:       form.category || null,
       relatedSkillId: form.relatedSkillId || null,
       relatedQuestId: form.relatedQuestId || null,
     }, event?.id)
@@ -202,6 +226,29 @@ function EventModal({ event, defaultDate, defaultStart, defaultEnd, skills, ques
                   }}
                 />
               ))}
+            </div>
+          </div>
+
+          {/* Category — counts toward the recommended daily distribution */}
+          <div className="form-group">
+            <label className="form-label">CATEGORÍA</label>
+            <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+              {TIME_CATEGORIES.map(c => {
+                const active = form.category === c.key
+                return (
+                  <button key={c.key} type="button"
+                    onClick={() => set('category', active ? '' : c.key)}
+                    style={{
+                      fontFamily:'var(--font-hud)', fontSize:12, cursor:'pointer',
+                      padding:'4px 9px', color: active ? '#000' : c.color,
+                      background: active ? c.color : `${c.color}1a`,
+                      border:`1px solid ${c.color}${active ? '' : '66'}`,
+                      transition:'all 0.1s',
+                    }}>
+                    {c.icon} {c.label}
+                  </button>
+                )
+              })}
             </div>
           </div>
 
@@ -314,7 +361,7 @@ function EventBlock({ event, onClick }) {
 }
 
 // ── MAIN CALENDAR COMPONENT ───────────────────────────────────────────────────
-export default function CalendarPage({ skills, quests }) {
+export default function CalendarPage({ skills, quests, profile }) {
   const [events, setEvents]       = useState([])
   const [loading, setLoading]     = useState(true)
   const [currentDate, setCurrentDate] = useState(new Date())
@@ -426,6 +473,19 @@ export default function CalendarPage({ skills, quests }) {
       })()
     : `${DAYS_ES[currentDate.getDay()]} ${currentDate.getDate()} ${MONTHS_ES[currentDate.getMonth()]} ${currentDate.getFullYear()}`
 
+  // Recommended (from Tiempo) vs scheduled hours for the day in view
+  const recommended = profile?.recommendedHours || {}
+  const dayStr = toDateStr(currentDate)
+  const scheduledByCat = {}
+  for (const e of events) {
+    if (e.date !== dayStr || !e.category) continue
+    const hrs = Math.max(0, (timeToMinutes(e.endTime) - timeToMinutes(e.startTime)) / 60)
+    scheduledByCat[e.category] = (scheduledByCat[e.category] || 0) + hrs
+  }
+  const planRows = TIME_CATEGORIES
+    .map(c => ({ ...c, rec: recommended[c.key] || 0, prog: scheduledByCat[c.key] || 0 }))
+    .filter(r => r.rec > 0 || r.prog > 0)
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
 
@@ -463,6 +523,46 @@ export default function CalendarPage({ skills, quests }) {
           </button>
         </div>
       </div>
+
+      {/* ── RECOMENDADO vs PROGRAMADO (day view) ──────────────── */}
+      {view === 'day' && planRows.length > 0 && (
+        <div style={{
+          marginBottom:14, padding:'12px 14px',
+          background:'var(--panel)', border:'1px solid var(--border2)',
+          borderLeft:'4px solid var(--cyan)',
+        }}>
+          <div style={{ fontFamily:'var(--font-title)', fontSize:7, color:'var(--cyan)', letterSpacing:2, marginBottom:10 }}>
+            ⏱ RECOMENDADO vs PROGRAMADO
+          </div>
+          <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+            {planRows.map(r => {
+              const remaining = Math.max(0, r.rec - r.prog)
+              const done = r.rec > 0 && remaining <= 0
+              return (
+                <div key={r.key} style={{
+                  display:'flex', flexDirection:'column', gap:3, minWidth:128,
+                  padding:'7px 10px', border:`1px solid ${r.color}55`, background:`${r.color}12`,
+                }}>
+                  <div style={{ fontFamily:'var(--font-hud)', fontSize:12, color:r.color }}>
+                    {r.icon} {r.label}
+                  </div>
+                  <div style={{ fontFamily:'var(--font-hud)', fontSize:14, color:'var(--white)' }}>
+                    {fmtHrs(r.prog)}{r.rec > 0 && <span style={{ color:'var(--dim)' }}> / {fmtHrs(r.rec)}</span>}
+                  </div>
+                  {r.rec > 0 && (
+                    <div style={{ fontFamily:'var(--font-hud)', fontSize:11, color: done ? 'var(--green)' : 'var(--orange)' }}>
+                      {done ? '✓ completo' : `quedan ${fmtHrs(remaining)}`}
+                    </div>
+                  )}
+                  {r.rec === 0 && (
+                    <div style={{ fontFamily:'var(--font-hud)', fontSize:11, color:'var(--dim)' }}>sin meta</div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ── CALENDAR GRID ─────────────────────────────────────── */}
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', border: '1px solid var(--border2)', background: 'var(--bg2)' }}>

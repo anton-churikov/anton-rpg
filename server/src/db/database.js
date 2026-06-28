@@ -181,6 +181,10 @@ function initSchema(db) {
   try { db.exec(`ALTER TABLE player_profiles ADD COLUMN equipped TEXT NOT NULL DEFAULT '{}'`); } catch {}
   try { db.exec(`ALTER TABLE activity_log ADD COLUMN coinsEarned INTEGER NOT NULL DEFAULT 0`); } catch {}
   try { db.exec(`CREATE INDEX IF NOT EXISTS idx_inventory_user ON inventory(userId)`); } catch {}
+
+  // Recommended-hours distribution (Tiempo) + event categories (Calendar) — additive
+  try { db.exec(`ALTER TABLE player_profiles ADD COLUMN recommendedHours TEXT NOT NULL DEFAULT '{}'`); } catch {}
+  try { db.exec(`ALTER TABLE events ADD COLUMN category TEXT`); } catch {}
 }
 
 export default getDb;

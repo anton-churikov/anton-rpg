@@ -13,6 +13,11 @@ export function formatProfile(p) {
     equipped = typeof p.equipped === 'string' ? JSON.parse(p.equipped || '{}') : (p.equipped || {});
   } catch { equipped = {}; }
 
+  let recommendedHours = {};
+  try {
+    recommendedHours = typeof p.recommendedHours === 'string' ? JSON.parse(p.recommendedHours || '{}') : (p.recommendedHours || {});
+  } catch { recommendedHours = {}; }
+
   // Resolve equipped IDs → display objects { slot: {id,type,name,rarity,data} }
   const equippedCosmetics = {};
   for (const [slot, id] of Object.entries(equipped)) {
@@ -26,5 +31,6 @@ export function formatProfile(p) {
     unlockedAchievements,
     equipped,
     equippedCosmetics,
+    recommendedHours,
   };
 }

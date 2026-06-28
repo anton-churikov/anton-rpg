@@ -68,4 +68,24 @@ router.post('/achievements', requireAuth, (req, res) => {
   res.json(fmt(updated));
 });
 
+// Valid Tiempo categories (mirror of client BAR_CATEGORIES keys)
+const TIME_CATEGORIES = ['sleep','work','study','fitness','hobby','social','rest','other'];
+
+// PUT /api/player/recommended-hours — save the global hours-distribution plan
+router.put('/recommended-hours', requireAuth, (req, res) => {
+  const db = getDb();
+  const incoming = req.body?.recommendedHours ?? req.body ?? {};
+  const clean = {};
+  for (const cat of TIME_CATEGORIES) {
+    const v = Number(incoming[cat]);
+    if (Number.isFinite(v) && v > 0) clean[cat] = Math.min(24, Math.round(v * 2) / 2); // snap to 30 min
+  }
+  const p = db.prepare('SELECT * FROM player_profiles WHERE userId = ?').get(req.userId);
+  if (!p) return res.status(404).json({ error: 'Profile not found' });
+  db.prepare('UPDATE player_profiles SET recommendedHours = ?, updatedAt = ? WHERE userId = ?')
+    .run(JSON.stringify(clean), new Date().toISOString(), req.userId);
+  const updated = db.prepare('SELECT * FROM player_profiles WHERE userId = ?').get(req.userId);
+  res.json(fmt(updated));
+});
+
 export default router;

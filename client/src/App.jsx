@@ -228,8 +228,8 @@ function GameShell() {
             <>
               {route==='player'       && <PlayerPage        player={profile} skills={skills} tasks={tasks} quests={quests} />}
               {route==='roadmap'      && <RoadmapPage       quests={quests} skills={skills} onQuestsChange={setQuests} onXPGain={handleXPGain} />}
-              {route==='time'         && <TimeManagementPage tasks={tasks} />}
-              {route==='calendar'     && <CalendarPage      skills={skills} quests={quests} />}
+              {route==='time'         && <TimeManagementPage profile={profile} onProfileChange={setProfile} />}
+              {route==='calendar'     && <CalendarPage      skills={skills} quests={quests} profile={profile} />}
               {route==='skills'       && <SkillsPage        skills={skills} tasks={tasks} onSkillsChange={setSkills} />}
               {route==='tasks'        && <TasksPage         tasks={tasks} skills={skills} onTasksChange={setTasks} onXPGain={handleXPGain} addTaskRef={addTaskRef} />}
               {route==='achievements' && <AchievementsPage  player={profile} skills={skills} tasks={tasks} quests={quests} />}

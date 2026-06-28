@@ -304,15 +304,15 @@ eventsRouter.get('/', requireAuth, (req, res) => {
 });
 
 eventsRouter.post('/', requireAuth, (req, res) => {
-  const { title, description, date, startTime, endTime, color, relatedSkillId, relatedQuestId } = req.body;
+  const { title, description, date, startTime, endTime, color, relatedSkillId, relatedQuestId, category } = req.body;
   if (!title?.trim()) return res.status(400).json({ error: 'Título obligatorio' });
   if (!date)          return res.status(400).json({ error: 'Fecha obligatoria' });
   if (!startTime)     return res.status(400).json({ error: 'Hora de inicio obligatoria' });
   if (!endTime)       return res.status(400).json({ error: 'Hora de fin obligatoria' });
   const db = getDb(); const now = new Date().toISOString(); const id = uuid();
-  db.prepare('INSERT INTO events (id,userId,title,description,date,startTime,endTime,color,relatedSkillId,relatedQuestId,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
+  db.prepare('INSERT INTO events (id,userId,title,description,date,startTime,endTime,color,relatedSkillId,relatedQuestId,category,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)')
     .run(id, req.userId, title.trim(), description||'', date, startTime, endTime,
-      color||'#1a6bff', relatedSkillId||null, relatedQuestId||null, now, now);
+      color||'#1a6bff', relatedSkillId||null, relatedQuestId||null, category||null, now, now);
   const ev = db.prepare(`SELECT e.*, s.name as skillName FROM events e LEFT JOIN skills s ON e.relatedSkillId=s.id WHERE e.id=?`).get(id);
   res.status(201).json(ev);
 });
@@ -321,13 +321,14 @@ eventsRouter.patch('/:id', requireAuth, (req, res) => {
   const db = getDb();
   const ex = db.prepare('SELECT * FROM events WHERE id=? AND userId=?').get(req.params.id, req.userId);
   if (!ex) return res.status(404).json({ error: 'Evento no encontrado' });
-  const { title, description, date, startTime, endTime, color, relatedSkillId, relatedQuestId } = req.body;
+  const { title, description, date, startTime, endTime, color, relatedSkillId, relatedQuestId, category } = req.body;
   const now = new Date().toISOString();
-  db.prepare('UPDATE events SET title=?,description=?,date=?,startTime=?,endTime=?,color=?,relatedSkillId=?,relatedQuestId=?,updatedAt=? WHERE id=? AND userId=?')
+  db.prepare('UPDATE events SET title=?,description=?,date=?,startTime=?,endTime=?,color=?,relatedSkillId=?,relatedQuestId=?,category=?,updatedAt=? WHERE id=? AND userId=?')
     .run(title??ex.title, description??ex.description, date??ex.date, startTime??ex.startTime,
       endTime??ex.endTime, color??ex.color,
       relatedSkillId!==undefined?relatedSkillId:ex.relatedSkillId,
       relatedQuestId!==undefined?relatedQuestId:ex.relatedQuestId,
+      category!==undefined?category:ex.category,
       now, req.params.id, req.userId);
   const updated = db.prepare(`SELECT e.*, s.name as skillName FROM events e LEFT JOIN skills s ON e.relatedSkillId=s.id WHERE e.id=?`).get(req.params.id);
   res.json(updated);

@@ -76,6 +76,7 @@ export const api = {
     update: (data) => request('PATCH', '/player', data),
     awardXP: (amount, reason) => request('POST', '/player/xp', { amount, reason }),
     unlockAchievement: (achievementId) => request('POST', '/player/achievements', { achievementId }),
+    setRecommendedHours: (recommendedHours) => request('PUT', '/player/recommended-hours', { recommendedHours }),
   },
 
   // SKILLS
