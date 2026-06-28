@@ -45,6 +45,35 @@ function getTotals(blocks) {
   return totals
 }
 
+// Hours per category still ahead of `nowHour` (un-elapsed portion of each block).
+// A block fully in the past contributes 0; fully ahead contributes its full duration;
+// in-progress contributes only the minutes still remaining.
+function getRemaining(blocks, nowHour) {
+  const rem = {}
+  for (const b of blocks) {
+    const end  = b.startHour + b.duration
+    const left = Math.max(0, Math.min(end, 24) - Math.max(b.startHour, nowHour))
+    if (left > 0) rem[b.category] = (rem[b.category] || 0) + left
+  }
+  return rem
+}
+
+// Current time as a fractional hour (0–24), e.g. 14.5 = 2:30 PM
+function nowAsHour() {
+  const d = new Date()
+  return d.getHours() + d.getMinutes() / 60
+}
+
+// Format a fractional-hour amount as "2h", "45m", or "1h 30m"
+function fmtHours(h) {
+  if (h <= 0) return '0h'
+  const whole = Math.floor(h)
+  const mins  = Math.round((h - whole) * 60)
+  if (whole === 0) return `${mins}m`
+  if (mins === 0)  return `${whole}h`
+  return `${whole}h ${mins}m`
+}
+
 // Check if two blocks overlap
 function overlaps(a, b) {
   return a.startHour < b.startHour + b.duration && a.startHour + a.duration > b.startHour
@@ -217,6 +246,13 @@ export default function TimeManagementPage({ tasks }) {
 
   useEffect(() => { fetchBlocks() }, [fetchBlocks])
 
+  // Live clock — drives the "AHORA" marker and the "what's left today" panel
+  const [nowHour, setNowHour] = useState(nowAsHour())
+  useEffect(() => {
+    const t = setInterval(() => setNowHour(nowAsHour()), 60 * 1000)
+    return () => clearInterval(t)
+  }, [])
+
   const handleSave = async (formData, id) => {
     try {
       const payload = {
@@ -258,6 +294,11 @@ export default function TimeManagementPage({ tasks }) {
   const totals = getTotals(blocks)
   const totalAllocated = Object.values(totals).reduce((s, v) => s + v, 0)
   const totalFree = Math.max(0, 24 - totalAllocated)
+
+  // "What's left today" only makes sense for the live day in the DÍA view.
+  const isToday = view === 'day' && selectedDate === new Date().toISOString().split('T')[0]
+  const remaining = isToday ? getRemaining(blocks, nowHour) : {}
+  const totalRemaining = Object.values(remaining).reduce((s, v) => s + v, 0)
 
   // Sort blocks for display
   const sortedBlocks = [...blocks].sort((a,b) => a.startHour - b.startHour)
@@ -389,6 +430,29 @@ export default function TimeManagementPage({ tasks }) {
             )
           })}
 
+          {/* NOW marker + elapsed-day dimming (today only) */}
+          {isToday && (
+            <>
+              <div style={{
+                position:'absolute', top:0, bottom:0, left:0,
+                width:`${(nowHour/24)*100}%`,
+                background:'rgba(0,0,0,0.45)', pointerEvents:'none', zIndex:4,
+              }} />
+              <div style={{
+                position:'absolute', top:0, bottom:0,
+                left:`${(nowHour/24)*100}%`,
+                width:2, background:'var(--yellow)',
+                boxShadow:'0 0 6px var(--yellow)', pointerEvents:'none', zIndex:5,
+              }}>
+                <div style={{
+                  position:'absolute', top:-3, left:'50%', transform:'translateX(-50%)',
+                  width:7, height:7, borderRadius:'50%', background:'var(--yellow)',
+                  boxShadow:'0 0 6px var(--yellow)',
+                }} />
+              </div>
+            </>
+          )}
+
           {/* Empty hint */}
           {blocks.length === 0 && (
             <div style={{
@@ -432,6 +496,48 @@ export default function TimeManagementPage({ tasks }) {
           )}
         </div>
       </div>
+
+      {/* ── QUEDA POR HACER HOY ─────────────────────────────────── */}
+      {isToday && (
+        <div style={{
+          marginBottom:24, padding:'14px 16px',
+          background:'var(--panel)', border:'2px solid var(--border2)',
+          borderLeft:'4px solid var(--yellow)',
+        }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:10, flexWrap:'wrap', gap:8 }}>
+            <span style={{ fontFamily:'var(--font-title)', fontSize:7, color:'var(--yellow)', letterSpacing:2 }}>
+              ⏳ QUEDA POR HACER HOY
+            </span>
+            <span style={{ fontFamily:'var(--font-hud)', fontSize:16, color:'var(--white)' }}>
+              {fmtHours(totalRemaining)} <span style={{ color:'var(--dim)', fontSize:12 }}>restantes</span>
+            </span>
+          </div>
+
+          {totalRemaining <= 0 ? (
+            <div style={{ fontFamily:'var(--font-hud)', fontSize:13, color:'var(--green)', letterSpacing:1 }}>
+              ✓ DÍA COMPLETO — sin bloques pendientes
+            </div>
+          ) : (
+            <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+              {BAR_CATEGORIES
+                .filter(c => (remaining[c.key] || 0) > 0)
+                .sort((a,b) => remaining[b.key] - remaining[a.key])
+                .map(c => (
+                  <div key={c.key} style={{
+                    display:'flex', alignItems:'center', gap:5,
+                    fontFamily:'var(--font-hud)', fontSize:13,
+                    padding:'3px 9px', border:`1px solid ${c.color}66`,
+                    background:`${c.color}1a`,
+                  }}>
+                    <div style={{ width:8, height:8, background:c.color, flexShrink:0, boxShadow:`0 0 5px ${c.color}` }} />
+                    <span style={{ color:c.color }}>{c.icon} {c.label}</span>
+                    <span style={{ color:'var(--white)' }}>{fmtHours(remaining[c.key])}</span>
+                  </div>
+                ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── BLOCK LIST ──────────────────────────────────────────── */}
       <div>
