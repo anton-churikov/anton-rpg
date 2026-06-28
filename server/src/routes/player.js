@@ -68,21 +68,47 @@ router.post('/achievements', requireAuth, (req, res) => {
   res.json(fmt(updated));
 });
 
-// Valid Tiempo categories (mirror of client BAR_CATEGORIES keys)
-const TIME_CATEGORIES = ['sleep','work','study','fitness','hobby','social','rest','other'];
+const MAX_CATEGORIES = 30;
 
-// PUT /api/player/recommended-hours — save the global hours-distribution plan
+// PUT /api/player/recommended-hours — save the global hours-distribution plan.
+// Categories are now user-defined, so keys are dynamic ids; we only sanitize values.
 router.put('/recommended-hours', requireAuth, (req, res) => {
   const db = getDb();
   const incoming = req.body?.recommendedHours ?? req.body ?? {};
   const clean = {};
-  for (const cat of TIME_CATEGORIES) {
-    const v = Number(incoming[cat]);
-    if (Number.isFinite(v) && v > 0) clean[cat] = Math.min(24, Math.round(v * 2) / 2); // snap to 30 min
+  for (const [key, raw] of Object.entries(incoming)) {
+    if (Object.keys(clean).length >= MAX_CATEGORIES) break;
+    if (typeof key !== 'string' || !key) continue;
+    const v = Number(raw);
+    if (Number.isFinite(v) && v > 0) clean[key.slice(0, 40)] = Math.min(24, Math.round(v * 2) / 2); // snap 30 min
   }
   const p = db.prepare('SELECT * FROM player_profiles WHERE userId = ?').get(req.userId);
   if (!p) return res.status(404).json({ error: 'Profile not found' });
   db.prepare('UPDATE player_profiles SET recommendedHours = ?, updatedAt = ? WHERE userId = ?')
+    .run(JSON.stringify(clean), new Date().toISOString(), req.userId);
+  const updated = db.prepare('SELECT * FROM player_profiles WHERE userId = ?').get(req.userId);
+  res.json(fmt(updated));
+});
+
+// PUT /api/player/time-categories — save the user's custom category list
+router.put('/time-categories', requireAuth, (req, res) => {
+  const db = getDb();
+  const incoming = Array.isArray(req.body?.timeCategories) ? req.body.timeCategories : [];
+  const seen = new Set();
+  const clean = [];
+  for (const c of incoming) {
+    if (clean.length >= MAX_CATEGORIES) break;
+    const id    = String(c?.id ?? '').slice(0, 40).trim();
+    const label = String(c?.label ?? '').slice(0, 40).trim();
+    if (!id || !label || seen.has(id)) continue;
+    seen.add(id);
+    const color = /^#[0-9a-fA-F]{6}$/.test(c?.color) ? c.color : '#888888';
+    const icon  = String(c?.icon ?? '').slice(0, 4);
+    clean.push({ id, label, color, icon });
+  }
+  const p = db.prepare('SELECT * FROM player_profiles WHERE userId = ?').get(req.userId);
+  if (!p) return res.status(404).json({ error: 'Profile not found' });
+  db.prepare('UPDATE player_profiles SET timeCategories = ?, updatedAt = ? WHERE userId = ?')
     .run(JSON.stringify(clean), new Date().toISOString(), req.userId);
   const updated = db.prepare('SELECT * FROM player_profiles WHERE userId = ?').get(req.userId);
   res.json(fmt(updated));

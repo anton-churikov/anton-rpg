@@ -185,6 +185,8 @@ function initSchema(db) {
   // Recommended-hours distribution (Tiempo) + event categories (Calendar) — additive
   try { db.exec(`ALTER TABLE player_profiles ADD COLUMN recommendedHours TEXT NOT NULL DEFAULT '{}'`); } catch {}
   try { db.exec(`ALTER TABLE events ADD COLUMN category TEXT`); } catch {}
+  // Custom user-defined time categories — additive
+  try { db.exec(`ALTER TABLE player_profiles ADD COLUMN timeCategories TEXT NOT NULL DEFAULT '[]'`); } catch {}
 }
 
 export default getDb;

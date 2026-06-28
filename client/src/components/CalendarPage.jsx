@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { toast } from 'react-hot-toast'
 import { api } from '../lib/api.js'
+import { getCategories } from '../lib/categories.js'
 
 // ── CONSTANTS ─────────────────────────────────────────────────────────────────
 const HOURS = Array.from({ length: 24 }, (_, i) => i)
@@ -20,19 +21,6 @@ const EVENT_COLORS = [
 ]
 
 const HOUR_HEIGHT = 60 // px per hour
-
-// Time categories — mirror of TimeManagementPage / server TIME_CATEGORIES
-const TIME_CATEGORIES = [
-  { key:'sleep',   label:'SUEÑO',      color:'#4444aa', icon:'🌙' },
-  { key:'work',    label:'TRABAJO',     color:'#1a6bff', icon:'💼' },
-  { key:'study',   label:'ESTUDIO',     color:'#aa44ff', icon:'📚' },
-  { key:'fitness', label:'EJERCICIO',   color:'#00ff66', icon:'💪' },
-  { key:'hobby',   label:'HOBBY',       color:'#ff7700', icon:'🎮' },
-  { key:'social',  label:'SOCIAL',      color:'#ff69b4', icon:'👥' },
-  { key:'rest',    label:'DESCANSO',    color:'#00d4ff', icon:'☕' },
-  { key:'other',   label:'OTRO',        color:'#888888', icon:'◉'  },
-]
-const CAT_MAP = Object.fromEntries(TIME_CATEGORIES.map(c => [c.key, c]))
 
 function fmtHrs(h) {
   if (!h || h <= 0) return '0h'
@@ -90,7 +78,7 @@ function snapTo15(minutes) {
 }
 
 // ── EVENT MODAL ───────────────────────────────────────────────────────────────
-function EventModal({ event, defaultDate, defaultStart, defaultEnd, skills, quests, onSave, onDelete, onClose }) {
+function EventModal({ event, defaultDate, defaultStart, defaultEnd, skills, quests, categories, onSave, onDelete, onClose }) {
   const isEdit = !!event
   const [form, setForm] = useState({
     title:          event?.title          || '',
@@ -233,11 +221,11 @@ function EventModal({ event, defaultDate, defaultStart, defaultEnd, skills, ques
           <div className="form-group">
             <label className="form-label">CATEGORÍA</label>
             <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
-              {TIME_CATEGORIES.map(c => {
-                const active = form.category === c.key
+              {categories.map(c => {
+                const active = form.category === c.id
                 return (
-                  <button key={c.key} type="button"
-                    onClick={() => set('category', active ? '' : c.key)}
+                  <button key={c.id} type="button"
+                    onClick={() => set('category', active ? '' : c.id)}
                     style={{
                       fontFamily:'var(--font-hud)', fontSize:12, cursor:'pointer',
                       padding:'4px 9px', color: active ? '#000' : c.color,
@@ -474,6 +462,7 @@ export default function CalendarPage({ skills, quests, profile }) {
     : `${DAYS_ES[currentDate.getDay()]} ${currentDate.getDate()} ${MONTHS_ES[currentDate.getMonth()]} ${currentDate.getFullYear()}`
 
   // Recommended (from Tiempo) vs scheduled hours for the day in view
+  const categories = getCategories(profile)
   const recommended = profile?.recommendedHours || {}
   const dayStr = toDateStr(currentDate)
   const scheduledByCat = {}
@@ -482,8 +471,8 @@ export default function CalendarPage({ skills, quests, profile }) {
     const hrs = Math.max(0, (timeToMinutes(e.endTime) - timeToMinutes(e.startTime)) / 60)
     scheduledByCat[e.category] = (scheduledByCat[e.category] || 0) + hrs
   }
-  const planRows = TIME_CATEGORIES
-    .map(c => ({ ...c, rec: recommended[c.key] || 0, prog: scheduledByCat[c.key] || 0 }))
+  const planRows = categories
+    .map(c => ({ ...c, rec: recommended[c.id] || 0, prog: scheduledByCat[c.id] || 0 }))
     .filter(r => r.rec > 0 || r.prog > 0)
 
   return (
@@ -539,7 +528,7 @@ export default function CalendarPage({ skills, quests, profile }) {
               const remaining = Math.max(0, r.rec - r.prog)
               const done = r.rec > 0 && remaining <= 0
               return (
-                <div key={r.key} style={{
+                <div key={r.id} style={{
                   display:'flex', flexDirection:'column', gap:3, minWidth:128,
                   padding:'7px 10px', border:`1px solid ${r.color}55`, background:`${r.color}12`,
                 }}>
@@ -693,6 +682,7 @@ export default function CalendarPage({ skills, quests, profile }) {
           defaultEnd={modalData.endTime}
           skills={skills}
           quests={quests}
+          categories={categories}
           onSave={handleSave}
           onDelete={handleDelete}
           onClose={() => setModalData(null)}

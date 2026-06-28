@@ -77,6 +77,7 @@ export const api = {
     awardXP: (amount, reason) => request('POST', '/player/xp', { amount, reason }),
     unlockAchievement: (achievementId) => request('POST', '/player/achievements', { achievementId }),
     setRecommendedHours: (recommendedHours) => request('PUT', '/player/recommended-hours', { recommendedHours }),
+    setTimeCategories: (timeCategories) => request('PUT', '/player/time-categories', { timeCategories }),
   },
 
   // SKILLS

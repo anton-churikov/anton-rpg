@@ -18,6 +18,11 @@ export function formatProfile(p) {
     recommendedHours = typeof p.recommendedHours === 'string' ? JSON.parse(p.recommendedHours || '{}') : (p.recommendedHours || {});
   } catch { recommendedHours = {}; }
 
+  let timeCategories = [];
+  try {
+    timeCategories = typeof p.timeCategories === 'string' ? JSON.parse(p.timeCategories || '[]') : (p.timeCategories || []);
+  } catch { timeCategories = []; }
+
   // Resolve equipped IDs → display objects { slot: {id,type,name,rarity,data} }
   const equippedCosmetics = {};
   for (const [slot, id] of Object.entries(equipped)) {
@@ -32,5 +37,6 @@ export function formatProfile(p) {
     equipped,
     equippedCosmetics,
     recommendedHours,
+    timeCategories,
   };
 }
